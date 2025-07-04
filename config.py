@@ -5,6 +5,7 @@ import datetime as dt
 from pathlib import Path
 from dataclasses import dataclass, field
 import torch
+from typing import Any
 
 
 @dataclass
@@ -31,6 +32,15 @@ class BaseFitConfig(ExperimentConfig):
     num_workers: int = 4
     patience: int = 10          # early-stop
     use_amp: bool = True
+    # ---- LR Scheduler ----
+    # scheduler_name: str = "StepLR"  # 任选 StepLR / Cosine / Plateau / None
+    # scheduler_kwargs: dict[str, Any] = field(
+    #     default_factory=lambda: {"step_size": 10, "gamma": 0.5}
+    # )
+    scheduler_name: str = "Cosine"  # 任选 StepLR / Cosine / Plateau / None
+    scheduler_kwargs: dict[str, Any] = field(
+        default_factory=lambda: {"T_max": 50, "eta_min": 1e-6}
+    )
 
 
 @dataclass

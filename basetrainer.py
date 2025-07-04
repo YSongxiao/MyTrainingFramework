@@ -10,6 +10,7 @@ from pathlib import Path
 from basemodel import BaseModel
 from basedataset import BaseDataset
 from dataclasses import dataclass, asdict
+from torch.optim import lr_scheduler
 
 
 class _FitCfgProto(Protocol):
@@ -34,7 +35,10 @@ class BaseTrainer:
         self.optimizer = optim.AdamW(self.model.parameters(), lr=cfg.lr)
         self.scaler = GradScaler(enabled=cfg.use_amp)
 
-        # DDP ラッパー
+        # ---- LR Scheduler ----
+        self.scheduler = self._build_scheduler()
+
+        # DDP warper
         if cfg.world_size > 1:
             self.model = nn.parallel.DistributedDataParallel(
                 self.model, device_ids=[rank]
@@ -163,3 +167,16 @@ class BaseTrainer:
         }
         torch.save(save_dict, self.run_dir / filename)
         print(f"Saved {filename} to {self.run_dir}")
+
+    def _build_scheduler(self):
+        name = self.cfg.scheduler_name
+        kw = self.cfg.scheduler_kwargs
+        if name is None:
+            return None
+        if name.lower() == "steplr":
+            return lr_scheduler.StepLR(self.optimizer, **kw)
+        if name.lower() == "cosine":
+            return lr_scheduler.CosineAnnealingLR(self.optimizer, **kw)
+        if name.lower() in {"plateau", "reducelronplateau"}:
+            return lr_scheduler.ReduceLROnPlateau(self.optimizer, **kw)
+        raise ValueError(f"Unknown scheduler {name}")
